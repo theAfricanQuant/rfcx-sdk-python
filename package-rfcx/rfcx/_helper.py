@@ -135,9 +135,8 @@ def positional(max_positional_args):
 
     if isinstance(max_positional_args, six.integer_types):
         return positional_decorator
-    else:
-        args, _, _, defaults = inspect.getargspec(max_positional_args)
-        return positional(len(args) - len(defaults))(max_positional_args)
+    args, _, _, defaults = inspect.getargspec(max_positional_args)
+    return positional(len(args) - len(defaults))(max_positional_args)
 
 
 def scopes_to_string(scopes):
@@ -153,10 +152,7 @@ def scopes_to_string(scopes):
     Returns:
         The scopes formatted as a single string.
     """
-    if isinstance(scopes, six.string_types):
-        return scopes
-    else:
-        return ' '.join(scopes)
+    return scopes if isinstance(scopes, six.string_types) else ' '.join(scopes)
 
 
 def string_to_scopes(scopes):
@@ -240,10 +236,7 @@ def _add_query_parameter(url, name, value):
     Returns:
         Updated query parameter. Does not update the url if value is None.
     """
-    if value is None:
-        return url
-    else:
-        return update_query_params(url, {name: value})
+    return url if value is None else update_query_params(url, {name: value})
 
 
 def validate_file(filename):

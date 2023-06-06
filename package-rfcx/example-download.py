@@ -19,7 +19,10 @@ def download(guardian_id, start, end, local_path, file_ext):
     for segment in segments:
         rfcx.save_audio_file(local_path, segment['guid'], file_ext)
         target_filename = segment['measured_at'][:-5].replace(':','-') + '.' + file_ext
-        os.rename(local_path+'/'+segment['guid']+'.'+file_ext, local_path+'/'+target_filename)
+        os.rename(
+            f'{local_path}/' + segment['guid'] + '.' + file_ext,
+            f'{local_path}/{target_filename}',
+        )
 
 # Download the last 10 minutes of the latest stream
 selected_guardian_id = guardians[0]['guid']
@@ -31,15 +34,16 @@ download(selected_guardian_id, start_time, end_time, 'downloaded', 'opus')
 # Any inferences detected in the last 5 minutes
 print('\nChecking for inferences in the same time period')
 events_in_last5mins = client.tags('inference', labels=['chainsaw', 'vehicle'], start=start_time, end=end_time, sites=['warsi'])
-events_in_last5mins = [x for x in events_in_last5mins if x['legacy']['confidence'] >= 0.975]
-if len(events_in_last5mins) == 0:
-    print('No events in this time')
-else:
+if events_in_last5mins := [
+    x for x in events_in_last5mins if x['legacy']['confidence'] >= 0.975
+]:
     # Sort by audio file start timestamp, then x offset
     events_in_last5mins.sort(key = lambda x:x['start'] + str(x['legacy']['xmin']).zfill(5))
     for event in events_in_last5mins:
         print(str(event['start']) + ' ' + str(event['legacy']['xmin']) + ' ' + str(event['legacy']['confidence']) + ' ' + event['label'])
 
+else:
+    print('No events in this time')
 # Get all the confirmed positive inferences for the last month (maybe a lot!)
 print('\nChecking for confirmed positive inferences of chainsaw in the last month')
 events_confirmed = client.tags('inference:confirmed', labels=['chainsaw'], sites=['warsi'])

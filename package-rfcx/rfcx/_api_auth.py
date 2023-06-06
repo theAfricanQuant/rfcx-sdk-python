@@ -72,10 +72,7 @@ def _request_token(post_data):
             delta = datetime.timedelta(seconds=int(d['expires_in']))
             token_expiry = delta + datetime.datetime.utcnow()
 
-        id_token_jwt = None
-        if 'id_token' in d:
-            id_token_jwt = d['id_token']
-
+        id_token_jwt = d['id_token'] if 'id_token' in d else None
         logger.info('Successfully retrieved access token')
         return access_token, refresh_token, token_expiry, id_token_jwt
     else:
@@ -97,5 +94,4 @@ def _parse_exchange_token_response(content):
         Content as a dictionary object. Note that the dict could be empty,
         i.e. {}. That basically indicates a failure.
     """
-    resp = json.loads(content)
-    return resp
+    return json.loads(content)

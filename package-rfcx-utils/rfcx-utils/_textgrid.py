@@ -59,16 +59,15 @@ def _getMark(text, short):
 
     # check that the line begins with a valid entry type
     if not short and not re.match(r'^\s*(text|mark):? ?=? ', line):
-        raise ValueError('Bad entry: ' + line)
+        raise ValueError(f'Bad entry: {line}')
 
     # read until the number of double-quotes is even
     while line.count('"') % 2:
-        next_line = text.readline()
+        if next_line := text.readline():
+            line += next_line
+        else:
+            raise EOFError(f'Bad entry: {line[:20]}...')
 
-        if not next_line:
-            raise EOFError('Bad entry: ' + line[:20] + '...')
-
-        line += next_line
     if short:
         pattern = r'^"(.*?)"\s*$'
     else:
@@ -178,7 +177,6 @@ def decode(string):
     """
     # print(string)
     return string
-    return string.decode('string_escape').decode('UTF-8')
 
 
 class Interval(object):
@@ -359,7 +357,7 @@ class PointTier(object):
             self.minTime = parse_line(source.readline(), short, round_digits)
             self.maxTime = parse_line(source.readline(), short, round_digits)
             n = int(parse_line(source.readline(), short, round_digits))
-            for i in range(n):
+            for _ in range(n):
                 source.readline().rstrip()  # header
                 itim = parse_line(source.readline(), short, round_digits)
                 imrk = _getMark(source, short)
@@ -470,8 +468,7 @@ class IntervalTier(object):
         the time point is outside the bounds of this tier. The argument
         can be a numeric type, or a Point object.
         """
-        i = self.indexContaining(time)
-        if i:
+        if i := self.indexContaining(time):
             return self.intervals[i]
 
     def read(self, f, round_digits=DEFAULT_TEXTGRID_PRECISION):
@@ -488,7 +485,7 @@ class IntervalTier(object):
             self.minTime = parse_line(source.readline(), short, round_digits)
             self.maxTime = parse_line(source.readline(), short, round_digits)
             n = int(parse_line(source.readline(), short, round_digits))
-            for i in range(n):
+            for _ in range(n):
                 source.readline().rstrip()  # header
                 imin = parse_line(source.readline(), short, round_digits)
                 imax = parse_line(source.readline(), short, round_digits)
@@ -551,18 +548,15 @@ class IntervalTier(object):
 def parse_line(line, short, to_round):
     line = line.strip()
     if short:
-        if '"' in line:
-            return line[1:-1]
-        return round(float(line), to_round)
-    
+        return line[1:-1] if '"' in line else round(float(line), to_round)
     m = re.match(r'.+? = "(.*)"', line)
     if m != None:
         return m.groups()[0]
-    
+
     m = re.match(r'.+? = \'(.*)\'', line)
     if m != None:
         return m.groups()[0]
-    
+
     m = re.match(r'.+? = (.*)', line)
     if m != None:
         return round(float(m.groups()[0]), to_round)
@@ -570,16 +564,13 @@ def parse_line(line, short, to_round):
     m = re.match(r'.+?: "(.*)"', line)
     if m != None:
         return m.groups()[0]
-    
+
     m = re.match(r'.+?: \'(.*)\'', line)
     if m != None:
         return m.groups()[0]
 
     m = re.match(r'.+?: (.*)', line)
-    if m != None:
-        return round(float(m.groups()[0]), to_round)
-
-    return None
+    return round(float(m.groups()[0]), to_round) if m != None else None
 
 
 
@@ -649,11 +640,7 @@ class TextGrid(object):
         """
         Return a list of all tiers with the given name.
         """
-        tiers = []
-        for t in self.tiers:
-            if t.name == tierName:
-                tiers.append(t)
-        return tiers
+        return [t for t in self.tiers if t.name == tierName]
 
     def getNames(self):
         """
@@ -671,9 +658,9 @@ class TextGrid(object):
         self.tiers.append(tier)
 
     def extend(self, tiers):
-        if min([t.minTime for t in tiers]) < self.minTime:
+        if min(t.minTime for t in tiers) < self.minTime:
             raise ValueError(self.minTime)  # too early
-        if self.maxTime and max([t.minTime for t in tiers]) > self.maxTime:
+        if self.maxTime and max(t.minTime for t in tiers) > self.maxTime:
             raise ValueError(self.maxTime)  # too late
         self.tiers.extend(tiers)
 
@@ -704,7 +691,7 @@ class TextGrid(object):
                 m = int(source.readline().strip().split()[2])  # will be self.n
             if not short:
                 source.readline()
-            for i in range(m):  # loop over grids
+            for _ in range(m):
                 if not short:
                     source.readline()
                 if parse_line(source.readline(), short, round_digits) == 'IntervalTier':
@@ -714,7 +701,7 @@ class TextGrid(object):
                     itie = IntervalTier(inam, imin, imax)
                     itie.strict = self.strict
                     n = int(parse_line(source.readline(), short, round_digits))
-                    for j in range(n):
+                    for _ in range(n):
                         if not short:
                             source.readline().rstrip().split()  # header junk
                         jmin = parse_line(source.readline(), short, round_digits)
@@ -724,19 +711,19 @@ class TextGrid(object):
                         jmrk = _getMark(source, short)
                         if jmin < jmax:  # non-null
                             itie.addInterval(Interval(jmin, jmax, jmrk))
-                    self.append(itie)
                 else:  # pointTier
                     inam = parse_line(source.readline(), short, round_digits)
                     imin = parse_line(source.readline(), short, round_digits)
                     imax = parse_line(source.readline(), short, round_digits)
                     itie = PointTier(inam)
                     n = int(parse_line(source.readline(), short, round_digits))
-                    for j in range(n):
+                    for _ in range(n):
                         source.readline().rstrip()  # header junk
                         jtim = parse_line(source.readline(), short, round_digits)
                         jmrk = _getMark(source, short)
                         itie.addPoint(Point(jtim, jmrk))
-                    self.append(itie)
+
+                self.append(itie)
 
     def write(self, f, null=''):
         """
@@ -751,8 +738,7 @@ class TextGrid(object):
         # compute max time
         maxT = self.maxTime
         if not maxT:
-            maxT = max([t.maxTime if t.maxTime else t[-1].maxTime \
-                        for t in self.tiers])
+            maxT = max(t.maxTime if t.maxTime else t[-1].maxTime for t in self.tiers)
         print('xmax = {0}'.format(maxT), file=sink)
         print('tiers? <exists>', file=sink)
         print('size = {0}'.format(len(self)), file=sink)
@@ -835,8 +821,7 @@ class MLF(object):
 
         source.readline()  # header
         while True:  # loop over text
-            name = re.match('\"(.*)\"', source.readline().rstrip())
-            if name:
+            if name := re.match('\"(.*)\"', source.readline().rstrip()):
                 name = name.groups()[0]
                 grid = TextGrid(name)
                 phon = IntervalTier(name='phones')
@@ -893,6 +878,6 @@ class MLF(object):
         for grid in self.grids:
             (junk, tail) = os.path.split(grid.name)
             (root, junk) = os.path.splitext(tail)
-            my_path = os.path.join(prefix, root + '.TextGrid')
+            my_path = os.path.join(prefix, f'{root}.TextGrid')
             grid.write(codecs.open(my_path, 'w', 'UTF-8'))
         return len(self.grids)

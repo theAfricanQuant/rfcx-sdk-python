@@ -18,7 +18,7 @@ def streamSegments(token, stream_id, start, end, limit, offset):
         'offset': offset
     }
     path = f'/streams/{stream_id}/stream-segments'
-    url = '{}{}?{}'.format(host, path, urllib.parse.urlencode(data, True))
+    url = f'{host}{path}?{urllib.parse.urlencode(data, True)}'
     return _request(url, token=token)
 
 
@@ -40,7 +40,7 @@ def annotations(token,
     if (stream):
         data['stream_id'] = stream
     path = '/annotations'
-    url = '{}{}?{}'.format(host, path, urllib.parse.urlencode(data, True))
+    url = f'{host}{path}?{urllib.parse.urlencode(data, True)}'
     return _request(url, token=token)
 
 
@@ -65,7 +65,7 @@ def detections(token,
     if (min_confidence):
         data['min_confidence'] = min_confidence
     path = '/detections'
-    url = '{}{}?{}'.format(host, path, urllib.parse.urlencode(data, True))
+    url = f'{host}{path}?{urllib.parse.urlencode(data, True)}'
     return _request(url, token=token)
 
 
@@ -89,18 +89,14 @@ def streams(token,
         'offset': offset
     }
     path = '/streams'
-    url = '{}{}?{}'.format(host, path, urllib.parse.urlencode(data, True))
+    url = f'{host}{path}?{urllib.parse.urlencode(data, True)}'
     return _request(url, token=token)
 
 
 def _request(url, method='GET', token=None):
-    logger.debug('get url: ' + url)
+    logger.debug(f'get url: {url}')
 
-    if token != None:
-        headers = {'Authorization': 'Bearer ' + token}
-    else:
-        headers = {}
-
+    headers = {'Authorization': f'Bearer {token}'} if token != None else {}
     http = httplib2.Http()
     resp, content = http.request(url, method=method, headers=headers)
 

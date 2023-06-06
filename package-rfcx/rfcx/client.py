@@ -37,9 +37,9 @@ class Client(object):
             print('Already authenticated')
             return
 
-        client_id = 'LS4dJlP8J2iOBr2snzm6N8I5u7FLSUGd'
         access_token = None
 
+        client_id = 'LS4dJlP8J2iOBr2snzm6N8I5u7FLSUGd'
         # Attempt to load the credentials from disk
         if os.path.exists(self.persisted_credentials_path):
             with open(self.persisted_credentials_path, 'r') as f:
@@ -83,8 +83,9 @@ class Client(object):
         scope = 'openid%20email%20profile%20offline_access'
 
         # Prompt the user to open their browser. On completion, paste the auth code.
-        print('Go to this URL in a browser: ' +
-              url.format(code_challenge, client_id, redirect_uri, scope))
+        print(
+            f'Go to this URL in a browser: {url.format(code_challenge, client_id, redirect_uri, scope)}'
+        )
         code = getpass.getpass('Enter your authorization code: ')
 
         # Perform the exchange
@@ -106,13 +107,12 @@ class Client(object):
                            id_token):
         self.credentials = Credentials(access_token, token_expiry,
                                        refresh_token, id_token)
-        app_meta = self.credentials.id_object['https://rfcx.org/app_metadata']
-        if app_meta:
+        if app_meta := self.credentials.id_object['https://rfcx.org/app_metadata']:
             self.accessible_sites = app_meta.get('accessibleSites', [])
             self.default_site = app_meta.get('defaultSite', 'derc')
             # Check we have sufficient credentials
             roles = app_meta.get('authorization', {}).get('roles', [])
-            if not "rfcxUser" in roles:
+            if "rfcxUser" not in roles:
                 raise Exception(
                     "User does not have sufficient privileges. Please check you have access to https://dashboard.rfcx.org or contact support."
                 )
@@ -176,17 +176,17 @@ class Client(object):
         Returns:
             List of audio files (meta data showing audio id and recorded timestamp)
         """
-        if self.credentials == None:
+        if self.credentials is None:
             print('Not authenticated')
             return
 
-        if stream == None:
+        if stream is None:
             print('Require stream id')
             return
 
-        if start == None:
+        if start is None:
             start = util.date_before()
-        if end == None:
+        if end is None:
             end = util.date_now()
 
         return api_rfcx.streamSegments(self.credentials.id_token, stream,
@@ -215,29 +215,29 @@ class Client(object):
         Returns:
             None.
         """
-        if self.credentials == None:
+        if self.credentials is None:
             print('Not authenticated')
             return
 
-        if stream == None:
+        if stream is None:
             print("Please specific the stream id.")
             return
 
-        if min_date == None:
+        if min_date is None:
             min_date = datetime.datetime.utcnow() - datetime.timedelta(days=30)
 
         if not isinstance(min_date, datetime.datetime):
             print("min_date is not type datetime")
             return
 
-        if max_date == None:
+        if max_date is None:
             max_date = datetime.datetime.utcnow()
 
         if not isinstance(max_date, datetime.datetime):
             print("max_date is not type datetime")
             return
 
-        if dest_path == None:
+        if dest_path is None:
             if not os.path.exists('./audios'):
                 os.makedirs('./audios')
             else:
@@ -298,7 +298,7 @@ class Client(object):
             print("timestamp is not type datetime")
             return
 
-        iso_timestamp = timestamp.replace(microsecond=0).isoformat() + 'Z'
+        iso_timestamp = f'{timestamp.replace(microsecond=0).isoformat()}Z'
 
         return ingest.ingest_audio(self.credentials.id_token, stream, filepath, iso_timestamp)
 
@@ -320,9 +320,9 @@ class Client(object):
         if (limit > 1000):
             raise Exception("Please give the value <= 1000")
 
-        if start == None:
+        if start is None:
             start = util.date_before()
-        if end == None:
+        if end is None:
             end = util.date_now()
 
         return api_rfcx.annotations(self.credentials.id_token, start, end, classifications, stream, limit, offset)
@@ -346,9 +346,9 @@ class Client(object):
         if (limit > 1000):
             raise Exception("Please give the value <= 1000")
 
-        if start == None:
+        if start is None:
             start = util.date_before()
-        if end == None:
+        if end is None:
             end = util.date_now()
 
         return api_rfcx.detections(self.credentials.id_token, start, end, classifications, streams, min_confidence, limit, offset)

@@ -15,8 +15,16 @@ def download(guardian_id, start, end, local_path, file_ext):
     segments = client.guardianAudio(guardian_id, start=start, end=end, limit=1000, descending=False)
     for segment in segments:
         rfcx.save_audio_file(local_path, segment['guid'], file_ext)
-        target_filename = local_path + '_' + segment['measured_at'][:-5].replace(':','-') + '.' + file_ext
-        os.rename(local_path+'/'+segment['guid']+'.'+file_ext, local_path+'/'+target_filename)
+        target_filename = (
+            f'{local_path}_'
+            + segment['measured_at'][:-5].replace(':', '-')
+            + '.'
+            + file_ext
+        )
+        os.rename(
+            f'{local_path}/' + segment['guid'] + '.' + file_ext,
+            f'{local_path}/{target_filename}',
+        )
 
 mouat_guid = '50b852375ab3'
 tilly_guid = 'e1765264aff2'

@@ -24,11 +24,13 @@ def csv_download(destination_path, csv_file_name, audio_extension='opus'):
     """
 
     if not os.path.exists(destination_path):  
-        raise Exception('No "{}" directory in current path.'.format(destination_path))
+        raise Exception(f'No "{destination_path}" directory in current path.')
     if not os.path.isfile(csv_file_name):
-        raise Exception('No "{}" file in current path.'.format(csv_file_name))
+        raise Exception(f'No "{csv_file_name}" file in current path.')
     if audio_extension not in ['opus', 'wav', 'json', 'png']:
-        raise Exception('Audio extension should be opus, wav, json, or png. Not accept: {}'.format(audio_extension))
+        raise Exception(
+            f'Audio extension should be opus, wav, json, or png. Not accept: {audio_extension}'
+        )
 
     csv_input = pd.read_csv(csv_file_name, header=None).values
     for i in csv_input:
@@ -48,7 +50,7 @@ def csv_slice_audio(csv_file_name, output_path, input_path_prefix=None, slice_se
             TypeError: if missing required arguements.
             FileNotFoundError: if missing required audio file.
     """
-    audio_info_list = list()
+    audio_info_list = []
     with open(csv_file_name, 'r') as f:
         reader = csv.reader(f)
         audio_info_list = list(reader)
@@ -70,13 +72,18 @@ def praat_slice_audio(praat_file_name, output_path, input_path_prefix=None, slic
             TypeError: if missing required arguements.
             FileNotFoundError: if missing required audio file.
     """
-    audio_info_list = list()
     tg = rfcx.TextGrid.fromFile(praat_file_name, strict=False)
     intervals = tg[0]
     audio_id = intervals.name
-    for interval in intervals:
-        audio_info_list.append([audio_id, math.floor(interval.minTime), math.ceil(interval.maxTime), interval.mark])
-
+    audio_info_list = [
+        [
+            audio_id,
+            math.floor(interval.minTime),
+            math.ceil(interval.maxTime),
+            interval.mark,
+        ]
+        for interval in intervals
+    ]
     __slice_audio(audio_info_list, output_path, input_path_prefix, slice_second)
 
 def __slice_audio(audio_list, output_path, input_path_prefix, slice_second):
@@ -86,16 +93,18 @@ def __slice_audio(audio_list, output_path, input_path_prefix, slice_second):
 
     if not os.path.exists(output_path):
         os.mkdir(output_path)
-        print("Created {} directory".format(output_path))
+        print(f"Created {output_path} directory")
 
     for info in full_info:
         audio_id, x1, x2, label = info
         duration = x2-x1
-        audio = AudioSegment.from_wav("{}{}.wav".format(input_path_prefix + "/" if input_path_prefix != None else "", audio_id))
+        audio = AudioSegment.from_wav(
+            f'{input_path_prefix + "/" if input_path_prefix != None else ""}{audio_id}.wav'
+        )
 
-        if not os.path.exists('{}/{}'.format(output_path, label)):
-            os.mkdir('{}/{}'.format(output_path, label))
-            print("Created {} directory in {} directory".format(label, output_path))
+        if not os.path.exists(f'{output_path}/{label}'):
+            os.mkdir(f'{output_path}/{label}')
+            print(f"Created {label} directory in {output_path} directory")
         if(duration < slice_second):
             start = x1 * 1000
             stop = x2 * 1000
@@ -108,9 +117,11 @@ def __slice_audio(audio_list, output_path, input_path_prefix, slice_second):
             stop = (x1+(i+2)) * 1000
             #print(start, stop, audio.duration_seconds, label)
             audioFragment = audio[start:stop]
-            file_handle = audioFragment.export('{}/{}/{}.{}.wav'.format(output_path, label, audio_id, count), format="wav")
+            file_handle = audioFragment.export(
+                f'{output_path}/{label}/{audio_id}.{count}.wav', format="wav"
+            )
             file_handle.close()
-            #print('File {}.{}.wav saved to {}'.format(audio_id, count, label))
+                    #print('File {}.{}.wav saved to {}'.format(audio_id, count, label))
     count = 0
 
 
@@ -140,16 +151,18 @@ def save_audio_file(destination_path, audio_id, source_audio_extension='opus'):
     url = "https://assets.rfcx.org/audio/" + audio_id + "." + source_audio_extension
     local_path = __local_audio_file_path(destination_path, audio_id, source_audio_extension)
     __save_file(url, local_path)
-    print('File {}.{} saved to {}'.format(audio_id, source_audio_extension, destination_path))
+    print(f'File {audio_id}.{source_audio_extension} saved to {destination_path}')
 
 def __get_environment_info(audio_annotated_info, input_path_prefix):
-    audio_envirnoment_info = list()
+    audio_envirnoment_info = []
     audio_id = audio_annotated_info[0][0]
 
     # TODO: it shouldn't be necessary to read an audio file here and this code assumes all audio files are the same length
-    audio = AudioSegment.from_wav("{}{}.wav".format(input_path_prefix + "/" if input_path_prefix != None else "", audio_id))
+    audio = AudioSegment.from_wav(
+        f'{input_path_prefix + "/" if input_path_prefix != None else ""}{audio_id}.wav'
+    )
     audio_full_duration = math.floor(audio.duration_seconds)
-    
+
     if len(audio_annotated_info) == 1:
         audio_envirnoment_info.append([audio_id, 0, audio_full_duration, "environment"])
         return audio_envirnoment_info
@@ -159,22 +172,20 @@ def __get_environment_info(audio_annotated_info, input_path_prefix):
 
     for i in range(len(audio_annotated_info)):
         # Check if the start of annotated is 0 or not
-        if(audio_annotated_info[0][1] == 0):
+        if (audio_annotated_info[0][1] == 0):
             start_env_time = audio_annotated_info[i][2]
             # Check if it is the last sub info or not
-            if(i < len(audio_annotated_info)-1):
+            if (i < len(audio_annotated_info)-1):
                 stop_env_time = audio_annotated_info[i+1][1]
                 # In case start time and stop time is the same ex. 2,5 5,6
                 if(start_env_time < stop_env_time):
                     audio_envirnoment_info.append([audio_id, start_env_time, stop_env_time, "environment"])
-            else:
-                # Check if the last sub info is equal to the full duration or not
-                if(audio_annotated_info[-1][2] < audio_full_duration):
-                    start_env_time = audio_annotated_info[i][2]
-                    stop_env_time = audio_full_duration
-                    if(start_env_time < stop_env_time):
-                        audio_envirnoment_info.append([audio_id, start_env_time, stop_env_time, "environment"])
-        
+            elif (audio_annotated_info[-1][2] < audio_full_duration):
+                stop_env_time = audio_full_duration
+                start_env_time = audio_annotated_info[i][2]
+                if(start_env_time < stop_env_time):
+                    audio_envirnoment_info.append([audio_id, start_env_time, stop_env_time, "environment"])
+
         else:  
             stop_env_time = audio_annotated_info[i][1]
             if(start_env_time < stop_env_time):
@@ -190,5 +201,4 @@ def __get_environment_info(audio_annotated_info, input_path_prefix):
 
 def __get_audio_info(audio_annotated_list, input_path_prefix):
     audio_environment_list = __get_environment_info(audio_annotated_list, input_path_prefix)
-    full_information_list = sorted(audio_annotated_list + audio_environment_list, key=itemgetter(1))
-    return full_information_list
+    return sorted(audio_annotated_list + audio_environment_list, key=itemgetter(1))

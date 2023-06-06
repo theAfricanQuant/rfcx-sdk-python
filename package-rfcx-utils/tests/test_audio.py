@@ -19,9 +19,9 @@ class AudioTests(TestCase):
 
         # Assert
         labels = os.listdir(output_path)
-        bark_files = os.listdir(output_path + "/bark")
-        squeak_files = os.listdir(output_path + "/squeak")
-        audio = AudioSegment.from_wav(output_path + "/squeak/" + squeak_files[6])
+        bark_files = os.listdir(f"{output_path}/bark")
+        squeak_files = os.listdir(f"{output_path}/squeak")
+        audio = AudioSegment.from_wav(f"{output_path}/squeak/{squeak_files[6]}")
         self.assertEqual(3, len(labels))
         self.assertEqual(2, len(bark_files))
         self.assertEqual(7, len(squeak_files))

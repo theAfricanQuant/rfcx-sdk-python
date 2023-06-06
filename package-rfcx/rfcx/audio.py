@@ -8,8 +8,8 @@ from rfcx._api_rfcx import streamSegments
 def __save_file(url, local_path, token):
     """ Download the file from `url` and save it locally under `local_path` """
     headers = {
-        "Authorization": "Bearer " + token,
-        'Content-Type': 'application/json'
+        "Authorization": f"Bearer {token}",
+        'Content-Type': 'application/json',
     }
     response = requests.get(url, headers=headers, stream=True)
 
@@ -17,7 +17,7 @@ def __save_file(url, local_path, token):
         with open(local_path, 'wb') as out_file:
             response.raw.decode_content = True
             shutil.copyfileobj(response.raw, out_file)
-            print('Saved {}'.format(local_path))
+            print(f'Saved {local_path}')
     else:
         print("Can not download", url)
         reason = response.json()
@@ -25,11 +25,11 @@ def __save_file(url, local_path, token):
 
 def __local_audio_file_path(path, audio_name, audio_extension):
     """ Create string for the name and the path """    
-    return path + '/' + audio_name + "." + audio_extension
+    return f'{path}/{audio_name}.{audio_extension}'
 
 def __generate_date_in_isoformat(date):
     """ Generate date in iso format ending with `Z` """
-    return date.replace(microsecond=0).isoformat() + 'Z'
+    return f'{date.replace(microsecond=0).isoformat()}Z'
 
 def save_audio_file(token, dest_path, stream_id, start_time, end_time, gain=1, file_ext='wav'):
     """ Prepare `url` and `local_path` and save it using function `__save_file` 
@@ -55,7 +55,7 @@ def save_audio_file(token, dest_path, stream_id, start_time, end_time, gain=1, f
                                                                                     end_time=end,
                                                                                     gain=gain,
                                                                                     file_ext=file_ext)
-    url = "https://media-api.rfcx.org/internal/assets/streams/" + audio_name + "." + file_ext
+    url = f"https://media-api.rfcx.org/internal/assets/streams/{audio_name}.{file_ext}"
     local_path = __local_audio_file_path(dest_path, audio_name, file_ext)
     __save_file(url, local_path, token)
 
@@ -70,9 +70,9 @@ def __get_all_segments(token, stream_id, start, end):
     offset = 0
 
     while not empty_segment:
-        # No data will return empty array from server
-        segments = streamSegments(token, stream_id, start, end, limit=1000, offset=offset)
-        if segments:
+        if segments := streamSegments(
+            token, stream_id, start, end, limit=1000, offset=offset
+        ):
             all_segments.extend(segments)
             offset = offset + 1000
         else:
@@ -85,13 +85,13 @@ def __segmentDownload(save_path, gain, file_ext, segment, token):
     stream_id = segment['stream']['id']
     start = iso_to_rfcx_custom_format(segment['start'])
     end = iso_to_rfcx_custom_format(segment['end'])
-    custom_time_range = start + '.' + end
+    custom_time_range = f'{start}.{end}'
     rfcx_audio_format = "{stream_id}_t{time}_rfull_g{gain}_f{file_ext}".format(stream_id=stream_id,
                                                                                                 time=custom_time_range,
                                                                                                 gain=gain,
                                                                                                 file_ext=file_ext)
-    audio_name = "{}_{}_{}_gain{}".format(stream_id, start, segment['id'], gain)
-    url = "https://media-api.rfcx.org/internal/assets/streams/" + rfcx_audio_format + "." + file_ext
+    audio_name = f"{stream_id}_{start}_{segment['id']}_gain{gain}"
+    url = f"https://media-api.rfcx.org/internal/assets/streams/{rfcx_audio_format}.{file_ext}"
     local_path = __local_audio_file_path(save_path, audio_name, file_ext)
     __save_file(url, local_path, token)
 
@@ -114,27 +114,32 @@ def downloadStreamSegments(token, dest_path, stream, min_date, max_date, gain=1,
         Raises:
             TypeError: if missing required arguements.
     """
-    save_path = dest_path + '/' + stream
+    save_path = f'{dest_path}/{stream}'
     if not os.path.exists(save_path):
         os.makedirs(save_path)
 
     start = __generate_date_in_isoformat(min_date)
     end = __generate_date_in_isoformat(max_date)
 
-    segments = __get_all_segments(token, stream, start, end)
-
-    if segments:
-        print("Downloading {} audio from {}".format(len(segments), stream))
-        if(parallel):
+    if segments := __get_all_segments(token, stream, start, end):
+        print(f"Downloading {len(segments)} audio from {stream}")
+        if parallel:
             with concurrent.futures.ThreadPoolExecutor(max_workers=100) as executor:
-                futures = []
-                for segment in segments:
-                    futures.append(executor.submit(__segmentDownload, save_path, gain, file_ext, segment, token))
-
+                futures = [
+                    executor.submit(
+                        __segmentDownload,
+                        save_path,
+                        gain,
+                        file_ext,
+                        segment,
+                        token,
+                    )
+                    for segment in segments
+                ]
                 futures, _ = concurrent.futures.wait(futures)
         else:
             for segment in segments:
                 __segmentDownload(save_path, gain, file_ext, segment, token)
-        print("Finish download on {}".format(stream))
+        print(f"Finish download on {stream}")
     else:
-        print("No data found on {} - {} at {}".format(start[:-10], end[:-10], stream))
+        print(f"No data found on {start[:-10]} - {end[:-10]} at {stream}")
